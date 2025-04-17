@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 import math  
 from collections import Counter  # 用于统计n-gram计数
 import numpy as np 
+import matplotlib.pyplot as plt 
 
 batch_size = 128
 max_len = 256
@@ -536,6 +537,17 @@ def run(total_epoch, best_loss):
 #        if valid_loss < best_loss:
 #            best_loss = valid_loss
 #            torch.save(model.state_dict(), 'saved/model-{0}.pt'.format(valid_loss))
+
+        plt.figure()
+        plt.plot(range(1, len(train_losses)+1), train_losses, label='Train Loss')
+        plt.plot(range(1, len(test_losses)+1), test_losses, label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title('Training and Validation Loss')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig('result/loss_curve.png')  # 保存图像
+        plt.close()  # 关闭图形，避免内存泄漏
 
         f = open('result/train_loss.txt', 'w')
         f.write(str(train_losses))
