@@ -7,14 +7,14 @@ from torch import optim
 from torch.optim import Adam
 from torch.nn.utils.rnn import pad_sequence
 import time
-from torchtext.datasets import Multi30k
+from torchtext.datasets import Multi30k 
 from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torch.utils.data import DataLoader
 import math  
 from collections import Counter  # 用于统计n-gram计数
 import numpy as np 
-
+import matplotlib.pyplot as plt 
 
 batch_size = 128
 max_len = 256
@@ -29,7 +29,7 @@ factor = 0.9
 adam_eps = 5e-9
 patience = 10
 warmup = 100
-epoch = 3
+epoch = 1000
 clip = 1.0
 weight_decay = 5e-4
 inf = float('inf')
@@ -353,7 +353,10 @@ BATCH_SIZE = 128
 # 重新加载数据集（因为迭代器只能遍历一次）
 train_iter = Multi30k(split='train', language_pair=('de', 'en'))
 valid_iter = Multi30k(split='valid', language_pair=('de', 'en'))
-test_iter=Multi30k(split='test', language_pair=('de', 'en'))
+
+
+train_list = list(train_iter)
+
 
 train_loader = DataLoader(
     list(train_iter),  # 转换为列表（Multi30k 是迭代器）
@@ -368,8 +371,17 @@ valid_loader = DataLoader(
     collate_fn=collate_batch
 )
 
+de_path='.data/datasets/Multi30k/test2016.de'
+en_path='.data/datasets/Multi30k/test2016.en'
+with open(de_path,'r', encoding="utf-8") as f: # 用utf-8 ecoding加载，大概了解下为什么
+    test_de=f.readlines()
+with open(en_path,'r', encoding="utf-8") as f:
+    test_en=f.readlines()
+    
+test_list=[(de,en) for de,en in zip(test_de,test_en)]
+
 test_loader = DataLoader(
-    test_iter,
+    test_list, 
     batch_size=1,  # 也可以设为 1 逐条测试
     shuffle=False,
     collate_fn=collate_batch
@@ -470,12 +482,12 @@ def idx_to_word(x, vocab):
             words.append(word)
     return " ".join(words)  # 拼接成字符串
 
-def evaluate(model,train_loader,criterion):
+def evaluate(model,loader,criterion):
     model.eval()
     losssum = 0
     batch_bleu = []
     with torch.no_grad(): 
-        for de, en in train_loader:
+        for de, en in loader: # 这个怎么还叫trainloader
             trg=en.to(device)  
             src=de.to(device)
             output = model(src, trg[:, :-1])
@@ -492,7 +504,7 @@ def evaluate(model,train_loader,criterion):
                     output_words = output[j].max(dim=1)[1]
                     output_words = idx_to_word(output_words, vocab_en)
                     # bleu = get_bleu(hypotheses=output_words.split(), reference=trg_words.split())
-                    bleu = 0.0
+                    bleu = 0.0 # 这里我注释掉了
                     total_bleu.append(bleu)
                 except:
                     pass
@@ -501,7 +513,7 @@ def evaluate(model,train_loader,criterion):
             batch_bleu.append(total_bleu)
 
     batch_bleu = sum(batch_bleu)
-    valid_loss=losssum/len(train_loader)
+    valid_loss=losssum/len(loader)
     
     return  valid_loss,batch_bleu
 
@@ -525,6 +537,17 @@ def run(total_epoch, best_loss):
 #        if valid_loss < best_loss:
 #            best_loss = valid_loss
 #            torch.save(model.state_dict(), 'saved/model-{0}.pt'.format(valid_loss))
+
+        plt.figure()
+        plt.plot(range(1, len(train_losses)+1), train_losses, label='Train Loss')
+        plt.plot(range(1, len(test_losses)+1), test_losses, label='Validation Loss')
+        plt.xlabel('Epoch')
+        plt.ylabel('Loss')
+        plt.title('Training and Validation Loss')
+        plt.legend()
+        plt.grid(True)
+        plt.savefig('result/loss_curve.png')  # 保存图像
+        plt.close()  # 关闭图形，避免内存泄漏
 
         f = open('result/train_loss.txt', 'w')
         f.write(str(train_losses))

@@ -1,0 +1,6 @@
+*.tar.gz
+*.pth
+/result
+/.vscode
+*.ipynb
+__pycache__
