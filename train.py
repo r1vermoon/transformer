@@ -15,7 +15,8 @@ from util.bleu import idx_to_word, get_bleu
 from util.epoch_timer import epoch_time
 from util.tokenizer import load_tokenizers
 from util.data import load_dataloaders
-from predict import *
+
+from config import get_config
 
 def train(model, train_loader, optimizer, criterion, clip, device):
     losssum=0
@@ -82,7 +83,7 @@ def evaluate(model, loader, criterion, batch_size, device):
     return  valid_loss,batch_bleu
 
 
-def run(model, total_epoch, train_loader, valid_loader, warmup, clip, src_pad_idx, init_lr, weight_decay, adam_eps, factor, patience):
+def run(model, total_epoch, train_loader, batch_size,device,valid_loader, warmup, clip, src_pad_idx, init_lr, weight_decay, adam_eps, factor, patience):
 
 
     # create 
@@ -155,94 +156,54 @@ def load_model(model_path, src_pad_idx, trg_pad_idx, trg_sos_idx, d_model, enc_v
     return model
 
 
-def transformer_predict(model, src_sentence, src_vocab, tgt_vocab, device, max_length=50):
-    """
-    Transformer模型的预测函数
-    """
-    model.eval()
-    
-    # 预处理源句子
-    src_tokens = ['<sos>'] + src_sentence.lower().split() + ['<eos>'] #
-    src_indices = [src_vocab[token] for token in src_tokens]
-    src_tensor = torch.LongTensor(src_indices).unsqueeze(0).to(device)
-    
-    # 创建目标输入(初始只有<sos>)
-    tgt_indices = [tgt_vocab['<sos>']]
-    
-    for i in range(max_length):
-        trg_tensor = torch.LongTensor(tgt_indices).unsqueeze(0).to(device)
-        
-        with torch.no_grad():
-            # 生成掩码
-            #src_mask = model.make_src_mask(src_tensor)
-            #trg_mask = model.make_trg_mask(tgt_tensor)
-            
-            # 前向传播
-            output = model(src_tensor, trg_tensor)
-            
-            # 获取最后一个词的预测
-            pred_token = output.argmax(2)[:,-1].item()
-            tgt_indices.append(pred_token)
-            
-            # 遇到<eos>则停止
-            if pred_token == tgt_vocab['<eos>']:
-                break
-    
-    # 转换为目标语言句子
-    tgt_sentence = ' '.join([tgt_vocab.lookup_token(idx) for idx in tgt_indices[1:-1]])
-    return tgt_sentence
-
-
-
-
 if __name__ == '__main__':
 
-    
+    cfg=get_config()
 
-    # data related configs
-    batch_size = 128
+    # # data related configs
+    # batch_size = 128
     de_path='.data/datasets/Multi30k/test2016.de'
     en_path='.data/datasets/Multi30k/test2016.en'
     
-    # model related configs
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    src_pad_idx = 1
-    trg_pad_idx = 1
-    trg_sos_idx = 2
-    max_len = 256
-    d_model = 512
-    n_layers = 6
-    n_heads = 8
-    ffn_hidden = 2048
-    drop_prob = 0.1
+    # # model related configs
+    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    # src_pad_idx = 1
+    # trg_pad_idx = 1
+    # trg_sos_idx = 2
+    # max_len = 256
+    # d_model = 512
+    # n_layers = 6
+    # n_heads = 8
+    # ffn_hidden = 2048
+    # drop_prob = 0.1
 
-    # training realted configs
-    init_lr = 1e-5
-    factor = 0.9
-    adam_eps = 5e-9
-    patience = 10
-    warmup = 100
-    total_epoch = 500
-    clip = 1.0
-    weight_decay = 5e-4
-    inf = float('inf')
+    # # training realted configs
+    # init_lr = 1e-5
+    # factor = 0.9
+    # adam_eps = 5e-9
+    # patience = 10
+    # warmup = 100
+    # total_epoch = 500
+    # clip = 1.0
+    # weight_decay = 5e-4
+    # inf = float('inf')
 
     # load tokenizer
     vocab_en, vocab_de, tokenizer_en, tokenizer_de = load_tokenizers()
 
     # load dataloaders
-    train_loader, valid_loader, test_loader = load_dataloaders(de_path, en_path, batch_size, vocab_en, vocab_de, tokenizer_en, tokenizer_de)
+    train_loader, valid_loader, test_loader = load_dataloaders(de_path, en_path, cfg.batch_size, vocab_en, vocab_de, tokenizer_en, tokenizer_de)
     
     # create model
-    model = Transformer(src_pad_idx=src_pad_idx,trg_pad_idx=trg_pad_idx,trg_sos_idx=trg_sos_idx,
-                        d_model=d_model,enc_voc_size=len(vocab_en), 
-                        dec_voc_size=len(vocab_de),max_len=max_len,ffn_hidden=ffn_hidden,n_head=n_heads,
-                        n_layers=n_layers, drop_prob=drop_prob,device=device).to(device)
+    model = Transformer(src_pad_idx=cfg.src_pad_idx,trg_pad_idx=cfg.trg_pad_idx,trg_sos_idx=cfg.trg_sos_idx,
+                        d_model=cfg.d_model,enc_voc_size=len(vocab_en), 
+                        dec_voc_size=len(vocab_de),max_len=cfg.max_len,ffn_hidden=cfg.ffn_hidden,n_head=cfg.n_heads,
+                        n_layers=cfg.n_layers, drop_prob=cfg.drop_prob,device=cfg.device).to(cfg.device)
 
 
 
-    run(model=model, total_epoch=total_epoch, train_loader=train_loader, valid_loader=valid_loader, warmup=warmup, clip=clip, src_pad_idx=src_pad_idx,
-        init_lr=init_lr, weight_decay=weight_decay, adam_eps=adam_eps, factor=factor, patience=pad_sequence)
+    run(model=model, total_epoch=cfg.total_epoch, train_loader=train_loader,batch_size=cfg.batch_size,device=cfg.device, valid_loader=valid_loader, warmup=cfg.warmup, clip=cfg.clip, src_pad_idx=cfg.src_pad_idx,
+        init_lr=cfg.init_lr, weight_decay=cfg.weight_decay, adam_eps=cfg.adam_eps, factor=cfg.factor, patience=pad_sequence)
     
     torch.save(model.state_dict(), 'final_model.pth')
     # model = load_model('final_model.pth')

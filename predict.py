@@ -25,7 +25,7 @@ def make_predict(src_sentence,vocab_en,vocab_de,tokenizer_en,model,device):
             # print(trg_indices)
             if predict_output==vocab_de['<eos>']:
                 break
-        
+
     trg_sentence=' '.join([vocab_de.lookup_token(number) for number in trg_indices[1:-1]])
     return trg_sentence
 
