@@ -15,6 +15,7 @@ import math
 from collections import Counter  # 用于统计n-gram计数
 import numpy as np 
 import matplotlib.pyplot as plt 
+from test import args
 
 batch_size = 128
 max_len = 256
@@ -29,11 +30,11 @@ factor = 0.9
 adam_eps = 5e-9
 patience = 10
 warmup = 100
-epoch = 1000
+epoch = 100
 clip = 1.0
 weight_decay = 5e-4
 inf = float('inf')
-
+print(args.epoch)
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(f"device:{device}")
 
@@ -327,6 +328,7 @@ model = Transformer(src_pad_idx=src_pad_idx,trg_pad_idx=trg_pad_idx,trg_sos_idx=
                     d_model=d_model,enc_voc_size=enc_voc_size, 
                     dec_voc_size=dec_voc_size,max_len=max_len,ffn_hidden=ffn_hidden,n_head=n_heads,
                     n_layers=n_layers, drop_prob=drop_prob,device=device).to(device)
+
 optimizer = torch.optim.Adam(model.parameters())
 criterion = nn.CrossEntropyLoss(ignore_index=src_pad_idx)
 
@@ -581,5 +583,8 @@ if __name__ == '__main__':
     model = load_model('final_model.pth')
 
     # 测试或推理
-    test_loss,bleu = evaluate(model, test_loader,criterion)
-    print(f"Test Loss: {test_loss:.4f}")
+    # test_loss,bleu = evaluate(model, test_loader,criterion)
+    # print(f"Test Loss: {test_loss:.4f}")
+    src_sentence="Ein Mann mit einem orangefarbenen Hut, der etwas anstarrt."
+    tgt_sentence=transformer_predict(model,src_sentence,vocab_de,vocab_en,device)
+    print(tgt_sentence)

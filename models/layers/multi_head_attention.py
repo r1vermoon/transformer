@@ -7,7 +7,7 @@ class MultiHeadAttention(nn.Module):
     def __init__(self,n_head,d_model):
         super(MultiHeadAttention,self).__init__()
         self.n_head=n_head
-        self.attention=ScaleDotProductAttention
+        self.attention=ScaleDotProductAttention()
         self.w_q=nn.Linear(d_model,d_model)
         self.w_k=nn.Linear(d_model,d_model)
         self.w_v=nn.Linear(d_model,d_model)
@@ -19,7 +19,7 @@ class MultiHeadAttention(nn.Module):
         tensor=tensor.view(batch_size,length,self.n_head,d_tensor).transpose(1,2)
         return tensor
     
-    def concat(tensor):
+    def concat(self, tensor):
         batch_size,head,length,d_tensor=tensor.size()
         d_model=head*d_tensor
         tensor = tensor.transpose(1, 2).contiguous().view(batch_size, length, d_model)
