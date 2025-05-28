@@ -29,7 +29,6 @@ def load_tokenizers():
         min_freq=2
     )
 
-    # 设置默认未知词标记
     vocab_en.set_default_index(vocab_en['<unk>'])
     vocab_de.set_default_index(vocab_de['<unk>'])
     

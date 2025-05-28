@@ -112,7 +112,7 @@ def run(model, total_epoch, train_loader, batch_size,device,valid_loader, warmup
         #bleus.append(bleu)
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
         if step % 50 == 0:
-            torch.save(model.state_dict(), f'final_model_{step}.pth')
+            torch.save(model.state_dict(), f'state_model_{step}.pth')
     
         
 #        if valid_loss < best_loss:

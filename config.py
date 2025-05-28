@@ -6,8 +6,6 @@ def get_config():
 
     # data
     parser.add_argument("--batch_size", type=int, default=128)
-    # parser.add_argument("--de_path", type=str, default='./data/datasets/Multi30k/test2016.de')
-    # parser.add_argument("--en_path", type=str, default='./data/datasets/Multi30k/test2016.en')
 
     # model
     parser.add_argument("--device", type=str, default="cuda:1" )
@@ -34,7 +32,7 @@ def get_config():
 
     args = parser.parse_args()
     
-    # 参数合法性检查
+    # legally check
     assert args.d_model % args.n_heads == 0
     assert args.drop_prob >= 0 and args.drop_prob < 1
     

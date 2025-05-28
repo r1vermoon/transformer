@@ -12,7 +12,7 @@ from torchtext.data.utils import get_tokenizer
 from torchtext.vocab import build_vocab_from_iterator
 from torch.utils.data import DataLoader
 import math  
-from collections import Counter  # 用于统计n-gram计数
+from collections import Counter  # n-gram
 import numpy as np 
 import matplotlib.pyplot as plt 
 from test import args
@@ -303,7 +303,7 @@ def yield_tokens(data_iter, tokenizer, language):
         yield tokenizer(data_sample[language])
         
    
-# 构建词汇表
+
 vocab_de = build_vocab_from_iterator(
     yield_tokens(train_iter, tokenizer_de, language=0),
     specials=['<unk>', '<pad>', '<bos>', '<eos>'],
@@ -315,7 +315,7 @@ vocab_en = build_vocab_from_iterator(
     min_freq=2
 )
 
-# 设置默认未知词标记
+
 vocab_de.set_default_index(vocab_de['<unk>'])
 vocab_en.set_default_index(vocab_en['<unk>'])
 
@@ -336,15 +336,15 @@ def collate_batch(batch):
     
     de_batch, en_batch = [], []
     for de, en in batch:
-        # 德语端添加 <bos> 和 <eos>
+        
         de_processed = [vocab_de['<bos>']] + vocab_de(tokenizer_de(de)) + [vocab_de['<eos>']]
-        # 英语端同理
+       
         en_processed = [vocab_en['<bos>']] + vocab_en(tokenizer_en(en)) + [vocab_en['<eos>']]
         
         de_batch.append(torch.tensor(de_processed, dtype=torch.long))
         en_batch.append(torch.tensor(en_processed, dtype=torch.long))
     
-    # 填充到相同长度
+   
     de_padded = pad_sequence(de_batch, padding_value=vocab_de['<pad>'], batch_first=True)
     en_padded = pad_sequence(en_batch, padding_value=vocab_en['<pad>'], batch_first=True)
 
@@ -352,7 +352,7 @@ def collate_batch(batch):
 
 BATCH_SIZE = 128
 
-# 重新加载数据集（因为迭代器只能遍历一次）
+
 train_iter = Multi30k(split='train', language_pair=('de', 'en'))
 valid_iter = Multi30k(split='valid', language_pair=('de', 'en'))
 
@@ -361,7 +361,7 @@ train_list = list(train_iter)
 
 
 train_loader = DataLoader(
-    list(train_iter),  # 转换为列表（Multi30k 是迭代器）
+    list(train_iter),  
     batch_size=BATCH_SIZE,
     shuffle=True,
     collate_fn=collate_batch
@@ -375,7 +375,7 @@ valid_loader = DataLoader(
 
 de_path='.data/datasets/Multi30k/test2016.de'
 en_path='.data/datasets/Multi30k/test2016.en'
-with open(de_path,'r', encoding="utf-8") as f: # 用utf-8 ecoding加载，大概了解下为什么
+with open(de_path,'r', encoding="utf-8") as f: 
     test_de=f.readlines()
 with open(en_path,'r', encoding="utf-8") as f:
     test_en=f.readlines()
@@ -384,7 +384,7 @@ test_list=[(de,en) for de,en in zip(test_de,test_en)]
 
 test_loader = DataLoader(
     test_list, 
-    batch_size=1,  # 也可以设为 1 逐条测试
+    batch_size=1, 
     shuffle=False,
     collate_fn=collate_batch
 )
@@ -406,9 +406,7 @@ def train(model, train_loader, optimizer, criterion, clip):
     
     for de,en in train_loader:  
         optimizer.zero_grad()
-    
-        #print(f"德语张量形状: {de.shape}")  # (seq_len, batch_size)
-        #print(f"英语张量形状: {en.shape}")
+
         trg=en.to(device)  
         src=de.to(device)
 
@@ -422,7 +420,6 @@ def train(model, train_loader, optimizer, criterion, clip):
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
         optimizer.step()
-        #print('loss :', loss.item())
     
         losssum = losssum+loss.item()
     last_loss=losssum/len(train_loader) 
@@ -434,7 +431,7 @@ def bleu_stats(hypothesis, reference):
     stats.append(len(hypothesis))
     stats.append(len(reference))
     
-    # 计算1-gram到4-gram的统计量
+
     for n in range(1, 5):
         s_ngrams = Counter(
             [tuple(hypothesis[i:i + n]) for i in range(len(hypothesis) + 1 - n)]
@@ -443,9 +440,8 @@ def bleu_stats(hypothesis, reference):
             [tuple(reference[i:i + n]) for i in range(len(reference) + 1 - n)]
         )
 
-        # 添加匹配的n-gram计数（交集）
         stats.append(max([sum((s_ngrams & r_ngrams).values()), 0]))
-        # 添加候选翻译中n-gram的总数
+
         stats.append(max([len(hypothesis) + 1 - n, 0]))
     return stats
 
@@ -454,42 +450,41 @@ def bleu(stats):
     if len(list(filter(lambda x: x == 0, stats))) > 0:
         return 0
     
-    c, r = stats[:2]  # 获取候选和参考翻译长度
+    c, r = stats[:2]  
     
-    # 计算1-4 gram的加权对数平均精确度
+  
     log_bleu_prec = sum(
         [math.log(float(x) / y) for x, y in zip(stats[2::2], stats[3::2])]
     ) / 4.
     
-    # 计算长度惩罚因子并组合最终BLEU分数
+   
     return math.exp(min([0, 1 - float(r) / c]) + log_bleu_prec)
 
 
 def get_bleu(hypotheses, reference):
     stats = np.array([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
     
-    # 累加所有句对的统计量
+ 
     for hyp, ref in zip(hypotheses, reference):
         stats += np.array(bleu_stats(hyp, ref))
     
-    # 计算并返回百分比形式的BLEU分数
     return 100 * bleu(stats)
 
 
 def idx_to_word(x, vocab):
     words = []
     for i in x:
-        word = vocab.get_itos()[i]  # 通过词汇表转换索引到单词
-        if '<' not in word:  # 过滤掉包含'<'的特殊标记
+        word = vocab.get_itos()[i]  
+        if '<' not in word: 
             words.append(word)
-    return " ".join(words)  # 拼接成字符串
+    return " ".join(words) 
 
 def evaluate(model,loader,criterion):
     model.eval()
     losssum = 0
     batch_bleu = []
     with torch.no_grad(): 
-        for de, en in loader: # 这个怎么还叫trainloader
+        for de, en in loader: 
             trg=en.to(device)  
             src=de.to(device)
             output = model(src, trg[:, :-1])
@@ -506,7 +501,7 @@ def evaluate(model,loader,criterion):
                     output_words = output[j].max(dim=1)[1]
                     output_words = idx_to_word(output_words, vocab_en)
                     # bleu = get_bleu(hypotheses=output_words.split(), reference=trg_words.split())
-                    bleu = 0.0 # 这里我注释掉了
+                    bleu = 0.0 
                     total_bleu.append(bleu)
                 except:
                     pass
@@ -532,13 +527,10 @@ def run(total_epoch, best_loss):
 
         train_losses.append(train_loss)
         test_losses.append(valid_loss)
-        #bleus.append(bleu)
+ 
         epoch_mins, epoch_secs = epoch_time(start_time, end_time)
         torch.save(model.state_dict(), 'final_model.pth')
         
-#        if valid_loss < best_loss:
-#            best_loss = valid_loss
-#            torch.save(model.state_dict(), 'saved/model-{0}.pt'.format(valid_loss))
 
         plt.figure()
         plt.plot(range(1, len(train_losses)+1), train_losses, label='Train Loss')
@@ -548,16 +540,13 @@ def run(total_epoch, best_loss):
         plt.title('Training and Validation Loss')
         plt.legend()
         plt.grid(True)
-        plt.savefig('result/loss_curve.png')  # 保存图像
-        plt.close()  # 关闭图形，避免内存泄漏
+        plt.savefig('result/loss_curve.png')  
+        plt.close()  
 
         f = open('result/train_loss.txt', 'w')
         f.write(str(train_losses))
         f.close()
 
-        #f = open('result/bleu.txt', 'w')
-        #f.write(str(bleus))
-        #f.close()
 
         f = open('result/test_loss.txt', 'w')
         f.write(str(test_losses))
@@ -566,7 +555,6 @@ def run(total_epoch, best_loss):
         print(f'Epoch: {step + 1} | Time: {epoch_mins}m {epoch_secs}s')
         print(f'\tTrain Loss: {train_loss:.3f} | Train PPL: {math.exp(train_loss):7.3f}')
         print(f'\tVal Loss: {valid_loss:.3f} |  Val PPL: {math.exp(valid_loss):7.3f}')
-#        print(f'\tBLEU Score: {bleu:.3f}')
 
 def load_model(model_path):
     model = Transformer(src_pad_idx=src_pad_idx,trg_pad_idx=trg_pad_idx,trg_sos_idx=trg_sos_idx,
@@ -581,10 +569,4 @@ def load_model(model_path):
 if __name__ == '__main__':
     run(total_epoch=epoch, best_loss=inf)
     model = load_model('final_model.pth')
-
-    # 测试或推理
-    # test_loss,bleu = evaluate(model, test_loader,criterion)
-    # print(f"Test Loss: {test_loss:.4f}")
-    src_sentence="Ein Mann mit einem orangefarbenen Hut, der etwas anstarrt."
-    tgt_sentence=transformer_predict(model,src_sentence,vocab_de,vocab_en,device)
-    print(tgt_sentence)
+    

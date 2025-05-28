@@ -15,7 +15,6 @@ def collate_batch(vocab_en, vocab_de, tokenizer_en, tokenizer_de, batch):
         en_batch.append(torch.tensor(en_processed, dtype=torch.long))
         de_batch.append(torch.tensor(de_processed, dtype=torch.long))
 
-    # 填充到相同长度
     en_padded = pad_sequence(en_batch, padding_value=vocab_en['<pad>'], batch_first=True)
     de_padded = pad_sequence(de_batch, padding_value=vocab_de['<pad>'], batch_first=True)
 
